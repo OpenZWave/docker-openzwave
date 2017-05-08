@@ -51,7 +51,8 @@ RUN			apt-get -y update && apt-get -y install \
 				make \
 				nano \
 				sudo \
-				zlib1g-dev
+				zlib1g-dev \
+				pkg-config
 
 # Create a user and reciprocal environment variables
 RUN			adduser --disabled-password --gecos "" python_user
@@ -74,8 +75,9 @@ RUN			pip install --upgrade pip
 USER		python_user
 WORKDIR		$HOME
 
-RUN			pip install cython==0.15
-RUN			pip install louie
+RUN			pip install Cython
+RUN			pip install 'Louie>=1.1'
+RUN			pip install 'urwid>=1.1.1'
 RUN			pip install gevent
 RUN			pip install flask-socketio
 
@@ -98,7 +100,7 @@ RUN			pip install pymongo
 
 #--------------------------------------- Supporting Modules: Communications
 # MQTT
-RUN			pip install mosquitto
+RUN			pip install paho-mqtt
 
 # ZeroMQ
 RUN			pip install pyzmq
@@ -152,6 +154,7 @@ RUN			mkdir -p $HOME/src/open-zwave/
 #				tail -n 1 \
 #				)" --single-branch $HOME/src/open-zwave/
 # As of right now, Python-OpenZWave can't use the most recent tag, and instead needs the most recent repository.
+# This is fixed in python_openzwave 0.4.x. Feel free to update
 RUN			git clone https://github.com/OpenZWave/open-zwave.git $HOME/src/open-zwave/
 
 # Compile OpenZWave
@@ -161,28 +164,19 @@ RUN			make
 # Install OpenZWave
 USER		root
 WORKDIR		$HOME/src/open-zwave/
-RUN			make install
+RUN			make install && ldconfig /usr/local/lib64
 
 # Install OpenZWave Device Database (https://github.com/OpenZWave/open-zwave/wiki/Adding-Devices)
 USER		python_user
 WORKDIR		$HOME
-RUN			cp -vaR $HOME/src/open-zwave/config $HOME/
+RUN			ln -s /usr/local/etc/openzwave $HOME/config
 
 ################################################################################
 USER		python_user
 WORKDIR		$HOME
 
-# Clone Python-OpenZWave
-RUN			git clone https://github.com/OpenZWave/python-openzwave.git $HOME/src/python-openzwave
-WORKDIR		$HOME/src/python-openzwave
-RUN			git checkout v0.3.0b4
-
-# Link OpenZWave directory for Python build
-RUN			ln -s $HOME/src/open-zwave $HOME/src/python-openzwave/openzwave
-
-# Compile and install Python-OpenZWave
-WORKDIR		$HOME/src/python-openzwave
-RUN			make install
+# Install python_openzwave
+RUN			pip install python_openzwave --install-option="--flavor=shared"
 
 ################################################################################
 USER		root
